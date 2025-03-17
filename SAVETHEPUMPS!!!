@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Save The Pumps</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+            color: white;
+            font-family: 'Press Start 2P', cursive;
+            background: url('https://static.vecteezy.com/system/resources/thumbnails/028/889/449/small_2x/generative-ai-warehouse-interior-with-led-lighting-industry-building-distribution-retail-center-part-of-storage-and-shipping-system-photo.jpg') no-repeat center center;
+            background-size: cover;
+            overflow: hidden; /* Hide overflow to prevent scrollbars */
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        .container {
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.8); /* Add a semi-transparent background to make text readable */
+            padding: 40px;
+            border-radius: 10px;
+            position: relative;
+        }
+        .title {
+            font-size: 6em;
+            margin-bottom: 20px;
+            animation: neon 1.5s infinite alternate;
+            color: #61dafb;
+            text-transform: uppercase;
+        }
+        @keyframes neon {
+            from {
+                text-shadow: 0 0 10px #61dafb, 0 0 20px #61dafb, 0 0 30px #61dafb, 0 0 40px #61dafb, 0 0 50px #61dafb, 0 0 60px #61dafb, 0 0 70px #61dafb;
+            }
+            to {
+                text-shadow: 0 0 20px #ff00ff, 0 0 30px #ff00ff, 0 0 40px #ff00ff, 0 0 50px #ff00ff, 0 0 60px #ff00ff, 0 0 70px #ff00ff;
+            }
+        }
+        .start-button, .restart-button {
+            padding: 20px 40px;
+            font-size: 2em; /* Increase font size */
+            cursor: pointer;
+            background-color: #61dafb; /* Change color to match title */
+            border: none;
+            border-radius: 5px;
+            color: #000;
+            margin-top: 40px;
+            text-transform: uppercase;
+            animation: flash 1.5s infinite alternate; /* Add flashing animation */
+        }
+        .start-button:hover, .restart-button:hover {
+            background-color: #61dafb; /* Keep the same color as the original background color */
+        }
+        .restart-button {
+            display: none; /* Initially hidden */
+        }
+        #gameCanvas {
+            display: none;
+            background: url('https://static.vecteezy.com/system/resources/thumbnails/028/889/449/small_2x/generative-ai-warehouse-interior-with-led-lighting-industry-building-distribution-retail-center-part-of-storage-and-shipping-system-photo.jpg') no-repeat center center;
+            background-size: cover;
+        }
+        .target {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: url('C:/Users/74443/OneDrive - Grundfos/Desktop/My Orders June 2018/GRUNDFOS_BOX-removebg-preview.png') no-repeat center center;
+            background-size: contain;
+        }
+        .high-score-table {
+            display: none;
+            padding: 20px;
+            border-radius: 10px;
+            border: 5px solid black; /* Add black border */
+            background-color: black; /* Add full black background */
+            width: 60%; /* Increase width */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            animation: flash 1s infinite alternate;
+        }
+        .high-score-table h2 {
+            font-size: 3em; /* Increase font size */
+            margin-bottom: 20px;
+            animation: flash 1.5s infinite alternate;
+        }
+        .high-score-table ul {
+            list-style: none;
+            padding: 0;
+        }
+        .high-score-table ul li {
+            font-size: 2em; /* Increase font size */
+            margin-bottom: 10px;
+            animation: flash 2s infinite alternate;
+        }
+        @keyframes flash {
+            from {
+                opacity: 1;
+                color: #61dafb;
+            }
+            to {
+                opacity: 0.5;
+                color: #ff00ff;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="startPage">
+        <div class="title">SAVE THE PUMPS!!!!</div>
+        <button class="start-button" onclick="startGame()">Start Game</button>
+        <button class="restart-button" onclick="startGame()">Restart Game</button>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <audio id="backgroundMusic" src="C:/Users/74443/Downloads/2020-04-24_-_Arcade_Kid_-_FesliyanStudios.com_-_David_Renda.mp3" loop=""></audio>
+    <audio id="catchSound" src="C:/Users/74443/Downloads/catch.mp3"></audio>
+    <audio id="gameOverSound" src="C:/Users/74443/Downloads/gameover.mp3"></audio>
+    <div class="high-score-table" id="highScoreTable">
+        <h2>High Scores</h2>
+        <ul id="highScoreList"></ul>
+    </div>
+
+    <script>
+        let targets = [];
+        let targetInterval;
+        let gameInterval;
+        let gameOver = false;
+        let canvas;
+        let ctx;
+        let player;
+        let highScores = JSON.parse(localStorage.getItem('highScores')) || [];
+
+        function startGame() {
+            document.getElementById('startPage').style.display = 'none';
+            document.getElementById('gameCanvas').style.display = 'block';
+            clearInterval(targetInterval);
+            targets.forEach(target => target.element.remove());
+            targets = [];
+            document.getElementById('backgroundMusic').play(); 
+            initGame();
+        }
+
+        function createTargets() {
+            for (let i = 0; i < 5; i++) {
+                const target = document.createElement('div');
+                target.classList.add('target');
+                document.body.appendChild(target);
+                targets.push({
+                    element: target,
+                    angle: Math.random() * 360,
+                    speed: (Math.random() * 2 - 1) * 1.5, // Increase the speed multiplier for quicker rotation
+                    radius: 300 + Math.random() * 200,
+                    x: Math.random() * window.innerWidth,
+                    y: Math.random() * window.innerHeight
+                });
+            }
+        }
+
+        function updateTargets() {
+            if (gameOver) return;
+            targets.forEach(target => {
+                target.angle += target.speed;
+                target.x += Math.cos(target.angle * Math.PI / 180) * 2;
+                target.y += Math.sin(target.angle * Math.PI / 180) * 2;
+
+                if (target.x < 0 || target.x > window.innerWidth - 100) {
+                    target.speed = -target.speed;
+                }
+                if (target.y < 0 || target.y > window.innerHeight - 100) {
+                    target.speed = -target.speed;
+                }
+
+                target.element.style.transform = `translate(${target.x}px, ${target.y}px)`;
+            });
+        }
+
+        function initTargets() {
+            createTargets();
+            targetInterval = setInterval(updateTargets, 20);
+        }
+
+        function initGame() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            let boxes = [];
+            let score = 0;
+            let level = 1;
+            gameOver = false;
+            const boxesPerLevel = 10;
+            const pumpImage = new Image();
+            pumpImage.src = 'C:/Users/74443/OneDrive - Grundfos/Desktop/My Orders June 2018/GRUNDFOS_BOX-removebg-preview.png';
+            const handImage = new Image();
+            handImage.src = 'C:/Users/74443/OneDrive - Grundfos/Desktop/My Orders June 2018/catching_hands.png';
+
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+
+            window.addEventListener('resize', resizeCanvas);
+            resizeCanvas();
+
+            class Box {
+                constructor(x, y, size, speed) {
+                    this.x = x;
+                    this.y = y;
+                    this.size = size;
+                    this.speed = speed;
+                }
+
+                draw() {
+                    ctx.drawImage(pumpImage, this.x, this.y, this.size, this.size);
+                }
+
+                update() {
+                    this.y += this.speed;
+                }
+            }
+
+            class Player {
+                constructor(x, y, width, height, speed) {
+                    this.x = x;
+                    this.y = y;
+                    this.width = width;
+                    this.height = height;
+                    this.speed = speed;
+                }
+
+                draw() {
+                    ctx.drawImage(handImage, this.x, this.y, this.width, this.height);
+                }
+
+                move(direction) {
+                    if (direction === 'left' && this.x > 0) {
+                        this.x -= this.speed;
+                    } else if (direction === 'right' && this.x + this.width < canvas.width) {
+                        this.x += this.speed;
+                    } else if (direction === 'up' && this.y > 0) {
+                        this.y -= this.speed;
+                    } else if (direction === 'down' && this.y + this.height < canvas.height) {
+                        this.y += this.speed;
+                    }
+                }
+
+                moveTo(x, y) {
+                    this.x = x - this.width / 2;
+                    this.y = y - this.height / 2;
+                }
+            }
+
+            function gameLoop() {
+                if (gameOver) return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                player.draw();
+
+                if (Math.random() < 0.02) {
+                    const size = 150;
+                    const x = Math.random() * (canvas.width - size);
+                    const speed = 2 + level;
+                    boxes.push(new Box(x, 0, size, speed));
+                }
+
+                boxes.forEach((box, index) => {
+                    box.update();
+                    box.draw();
+
+                    if (box.y + box.size > canvas.height) {
+                        gameOver = true;
+                    }
+
+                    if (box.y + box.size > player.y && box.x < player.x + player.width && box.x + box.size > player.x) {
+                        score++;
+                        document.getElementById('catchSound').play();
+                        boxes.splice(index, 1);
+                    }
+                });
+
+                if (score >= boxesPerLevel * level) {
+                    level++;
+                }
+
+                if (gameOver) {
+                    clearInterval(gameInterval);
+                    clearInterval(targetInterval); // Stop target updates
+                    document.removeEventListener('keydown', handleKeydown);
+                    canvas.removeEventListener('mousemove', handleMousemove);
+                    document.getElementById('gameOverSound').play();
+                    saveHighScore(score);
+                    displayHighScoreTable();
+                }
+            }
+
+            function saveHighScore(score) {
+                highScores.push(score);
+                highScores.sort((a, b) => b - a);
+                highScores = highScores.slice(0, 10);
+                localStorage.setItem('highScores', JSON.stringify(highScores));
+            }
+
+            function displayHighScoreTable() {
+                const highScoreList = document.getElementById('highScoreList');
+                highScoreList.innerHTML = '';
+                highScores.forEach((score, index) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${index + 1}. ${score}`;
+                    highScoreList.appendChild(li);
+                });
+                document.getElementById('highScoreTable').style.display = 'block';
+                document.getElementById('startPage').style.display = 'none';
+                document.getElementById('gameCanvas').style.display = 'none';
+            }
+
+            function flashScore() {
+                let hue = 0;
+                function animate() {
+                    hue += 1;
+                    if (hue >= 360) hue = 0;
+
+                    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+                    gradient.addColorStop(0, 'hsl(' + hue + ', 100%, 50%)');
+                    gradient.addColorStop(0.16, 'hsl(' + (hue + 60) % 360 + ', 100%, 50%)');
+                    gradient.addColorStop(0.33, 'hsl(' + (hue + 120) % 360 + ', 100%, 50%)');
+                    gradient.addColorStop(0.5, 'hsl(' + (hue + 180) % 360 + ', 100%, 50%)');
+                    gradient.addColorStop(0.66, 'hsl(' + (hue + 240) % 360 + ', 100%, 50%)');
+                    gradient.addColorStop(0.83, 'hsl(' + (hue + 300) % 360 + ', 100%, 50%)');
+                    gradient.addColorStop(1, 'hsl(' + hue + ', 100%, 50%)');
+
+                    ctx.fillStyle = gradient;
+                    ctx.font = '48px Arial';
+                    ctx.fillText(`Score: ${score}`, 10, 60);
+                    ctx.fillText(`Level: ${level}`, 10, 120);
+
+                    requestAnimationFrame(animate);
+                }
+                animate();
+            }
+
+            function handleKeydown(e) {
+                if (e.key === 'ArrowLeft') {
+                    player.move('left');
+                } else if (e.key === 'ArrowRight') {
+                    player.move('right');
+                } else if (e.key === 'ArrowUp') {
+                    player.move('up');
+                } else if (e.key === 'ArrowDown') {
+                    player.move('down');
+                } else if (e.key === 'Escape') {
+                    clearInterval(gameInterval);
+                    clearInterval(targetInterval); // Stop target updates
+                    document.removeEventListener('keydown', handleKeydown);
+                    canvas.removeEventListener('mousemove', handleMousemove);
+                    document.getElementById('startPage').style.display = 'flex';
+                    document.getElementById('gameCanvas').style.display = 'none';
+                    initTargets();
+                    document.getElementById('backgroundMusic').play();
+                }
+            }
+
+            function handleMousemove(e) {
+                player.moveTo(e.clientX, e.clientY);
+            }
+
+            player = new Player(canvas.width / 2 - 50, canvas.height - 100, 100, 100, 10);
+            boxes = [];
+            score = 0;
+            level = 1;
+            gameOver = false;
+            gameInterval = setInterval(gameLoop, 30);
+            flashScore();
+
+            document.addEventListener('keydown', handleKeydown);
+            canvas.addEventListener('mousemove', handleMousemove);
+        }
+
+        window.onload = () => {
+            initTargets();
+            document.getElementById('backgroundMusic').play();
+        };
+    </script>
+</body>
+</html>
